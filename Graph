@@ -1,0 +1,112 @@
+import matplotlib.pyplot as mp
+import statistics as st
+import numpy as np
+
+#куча переменных
+
+days = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]
+TempDay = [15,16,13,13,7,13,11,19,26,21,4,6,12,13,14,16,16,22,23,24,19,22,18,16,22,25,23,13,14,18,16,]
+TempNight = [ 9,8,8,12,7,8,6,15,21,14,4,5,9,9,10,14,11,19,17,15,12,19,12,11,14,18,19,12,12,15,12]
+PressDay = [746,740,740,740,743,744,748,749,741,740,744,746,744,742,737,737,740,742,741,735,740,741,737,745,746,739,734,732,737,736,737]
+PressNight = [747,740,742,740,742,748,749,748,740,743,746,746,744,741,738,736,743,740,741,738,742,739,741,747,744,737,733,734,734,737,737]
+Legacy_Legend = []
+
+
+#некоторые заморочки с легендой,новая создается как замена старой -> тут решаю эту проблему
+
+def Legend_Teller(ax,data,legend,locat):
+    global Legacy_Legend
+    leg = mp.legend(data,legend, loc=locat,bbox_to_anchor=(0.6, 0.5, 0.5, 0.5))
+    for i in range(len(Legacy_Legend)):
+        if Legacy_Legend[i][0] == ax:
+            try:
+                ax.add_artist(Legacy_Legend[i][1])
+            except Exception:
+                pass
+    Legacy_Legend.append([ax, leg])
+
+
+
+#Построение графиков
+
+fig,(ax1, ax2) = mp.subplots(2)
+
+def Plot_The_Builder(ax,XaxisArray,YaxisArray,ColorArray,Xlabel,Ylabel,Legend,locat):
+    global Legacy_Legend
+    mp.grid(True)
+    nplots = len(XaxisArray)
+    plotsum = []
+    for i in range(nplots):
+        plotsum += ax.plot(XaxisArray[i], YaxisArray[i], ColorArray[i])
+    mp.ylabel(Ylabel)
+    mp.xlabel(Xlabel)
+    Legend_Teller(ax,plotsum,Legend,locat)
+
+
+mp.subplot(211)
+xar1 = [days,days]
+yar1 = [TempDay,TempNight]
+car1 = ['ro','go']
+Plot_The_Builder(ax1, xar1, yar1, car1, 'Temperature', 'Days', ['Air Temperature -- day', 'Air Temperature -- night'],'upper right')
+
+mp.subplot(212)
+xar2 = [days,days]
+yar2 = [PressDay,PressNight]
+car2 = ['r^','g^']
+Plot_The_Builder(ax2, xar2, yar2, car2, 'Pressure', 'Days', ['Air Pressure -- day', 'Air Pressure -- night'],'upper right')
+
+
+#Построение медиан
+
+def Median_The_Builder(ax,DataArray,legend,locat):
+    ndatas = len(DataArray)
+    Means = []
+    for i in range(ndatas):
+        DataArray1 = DataArray[i].copy()
+        DataArray2 = DataArray1.copy()
+        Len = len(DataArray1)
+        for i in range(Len-2):
+            avg = [DataArray1[i], DataArray1[i + 1], DataArray1[i + 2]]
+            DataArray2[i+1] = st.mean(avg)
+        Means += mp.plot(DataArray2)
+    Legend_Teller(ax,Means,legend,locat)
+
+
+mp.subplot(211)
+DA1 = [TempDay,TempNight]
+Median_The_Builder(ax1,DA1,['Air Temperature -- day,mean', 'Air Temperature -- night,mean'],'center right')
+
+mp.subplot(212)
+DA2 = [PressDay,PressNight]
+Median_The_Builder(ax2,DA2,['Air Pressure -- day,mean', 'Air Pressure -- night,mean'],'center right')
+
+
+#сортировка
+
+def Double_Sorter(Array):
+    Array1 = Array.copy()
+    Len = len(Array1)
+    while True:
+        temp = 0
+        for i in range(Len - 2):
+            ps = Array1[i]
+            pr = Array1[i + 1]
+            fu = Array1[i + 2]
+            if pr > fu: pr, fu = fu, pr ; temp+=1
+            if ps > pr: ps, pr = pr, ps ; temp+=1
+            Array1[i] = ps
+            Array1[i+1] = pr
+            Array1[i+2] = fu
+        if temp == 0: break
+    print('Sorted!','\n',Array1)
+
+
+Double_Sorter(TempDay)
+Double_Sorter(TempNight)
+Double_Sorter(PressDay)
+Double_Sorter(PressNight)
+
+
+#вывод графиков
+
+mp.show()
