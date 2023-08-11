@@ -1,112 +1,255 @@
 import matplotlib.pyplot as mp
 import statistics as st
 import numpy as np
+import scipy.integrate as integrate
+from scipy.integrate import quad
+import sys
 
-#куча переменных
+#Программа может воспроизводить любое дз - нужно просто убрать комментарии с нужных команд
+#Функции разделены на блоки комментариями (идут в хронологическом порядке)
+#Задания 5 (форматирование текста) и 6 (чтение из файла) работают всегда - они просто удобны
 
-days = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]
-TempDay = [15,16,13,13,7,13,11,19,26,21,4,6,12,13,14,16,16,22,23,24,19,22,18,16,22,25,23,13,14,18,16,]
-TempNight = [ 9,8,8,12,7,8,6,15,21,14,4,5,9,9,10,14,11,19,17,15,12,19,12,11,14,18,19,12,12,15,12]
-PressDay = [746,740,740,740,743,744,748,749,741,740,744,746,744,742,737,737,740,742,741,735,740,741,737,745,746,739,734,732,737,736,737]
-PressNight = [747,740,742,740,742,748,749,748,740,743,746,746,744,741,738,736,743,740,741,738,742,739,741,747,744,737,733,734,734,737,737]
-Legacy_Legend = []
+#Вот это можно считать заданием 6
+with open('br.txt') as f:
+    FILE = []
+    for x in f: FILE.append([int(y) for y in x.split(',')])
+days = FILE[0]
+TempDay = FILE[1]
+TempNight = FILE[2]
+PressDay = FILE[3]
+PressNight = FILE[4]
 
+global Legacy_Legend
+Legacy_Legend = {}
 
-#некоторые заморочки с легендой,новая создается как замена старой -> тут решаю эту проблему
+global Counter
+Counter = 0
 
-def Legend_Teller(ax,data,legend,locat):
-    global Legacy_Legend
-    leg = mp.legend(data,legend, loc=locat,bbox_to_anchor=(0.6, 0.5, 0.5, 0.5))
-    for i in range(len(Legacy_Legend)):
-        if Legacy_Legend[i][0] == ax:
-            try:
-                ax.add_artist(Legacy_Legend[i][1])
-            except Exception:
-                pass
-    Legacy_Legend.append([ax, leg])
-
-
-
-#Построение графиков
 
 fig,(ax1, ax2) = mp.subplots(2)
 
-def Plot_The_Builder(ax,XaxisArray,YaxisArray,ColorArray,Xlabel,Ylabel,Legend,locat):
-    global Legacy_Legend
-    mp.grid(True)
-    nplots = len(XaxisArray)
-    plotsum = []
-    for i in range(nplots):
-        plotsum += ax.plot(XaxisArray[i], YaxisArray[i], ColorArray[i])
-    mp.ylabel(Ylabel)
-    mp.xlabel(Xlabel)
-    Legend_Teller(ax,plotsum,Legend,locat)
+with open('readme.txt', 'w') as f:
+    pass
 
 
-mp.subplot(211)
-xar1 = [days,days]
-yar1 = [TempDay,TempNight]
-car1 = ['ro','go']
-Plot_The_Builder(ax1, xar1, yar1, car1, 'Temperature', 'Days', ['Air Temperature -- day', 'Air Temperature -- night'],'upper right')
+class Figure:
+    # Основные актеры
 
-mp.subplot(212)
-xar2 = [days,days]
-yar2 = [PressDay,PressNight]
-car2 = ['r^','g^']
-Plot_The_Builder(ax2, xar2, yar2, car2, 'Pressure', 'Days', ['Air Pressure -- day', 'Air Pressure -- night'],'upper right')
+    def __init__(self,ax,x,title = 'title',ylabel = 'y',xlabel = 'x'):
+        self.ax = ax
+        self.x = x
+        self.ax.grid(True)
+        self.title = title
+        self.ylabel = ylabel
+        self.xlabel = xlabel
+        self.Table = []
 
 
-#Построение медиан
+    def plot(self,y,c = '',legend = 'empty'):
+        actor = self.ax.plot(self.x,y,c,label = legend)
+        self.LegendTeller(actor)
+        self.ax.set_title(self.title)
+        self.ax.set_ylabel(self.ylabel)
+        self.ax.set_xlabel(self.xlabel)
 
-def Median_The_Builder(ax,DataArray,legend,locat):
-    ndatas = len(DataArray)
-    Means = []
-    for i in range(ndatas):
-        DataArray1 = DataArray[i].copy()
-        DataArray2 = DataArray1.copy()
-        Len = len(DataArray1)
-        for i in range(Len-2):
+
+    def LegendTeller(self, data):
+        global Legacy_Legend
+        actor = []
+        try :actor = Legacy_Legend[self.ax]
+        except Exception: Legacy_Legend[self.ax] = []
+        actor += data
+        Legacy_Legend[self.ax] = actor
+        self.ax.legend(handles=Legacy_Legend[self.ax], loc='center right', bbox_to_anchor=(0.63, 0.6, 0.5, 0.5))
+
+
+
+    #Второе задание
+
+    def MedianTheBuilder(self, DataArray, legend = 'empty'):
+        DataArray1,DataArray2 = DataArray.copy(),DataArray.copy()
+        for i in range(len(DataArray1) - 2):
             avg = [DataArray1[i], DataArray1[i + 1], DataArray1[i + 2]]
-            DataArray2[i+1] = st.mean(avg)
-        Means += mp.plot(DataArray2)
-    Legend_Teller(ax,Means,legend,locat)
+            DataArray2[i + 1] = st.mean(avg)
+        Mean = self.ax.plot(DataArray2, label = legend)
+        self.LegendTeller(Mean)
+
+    #Третье задание
+
+    def DoubleSorter(self,Array):
+        Array1 = Array.copy()
+        while True:
+            temp = 0
+            for i in range(len(Array1) - 2):
+                ps, pr, fu = Array1[i], Array1[i + 1], Array1[i + 2]
+                if pr > fu: pr, fu = fu, pr; temp += 1
+                if ps > pr: ps, pr = pr, ps; temp += 1
+                Array1[i],Array1[i + 1],Array1[i + 2] = ps,pr,fu
+            if temp == 0: break
+        self.tabletka('Sorted Array!',', '.join(str(x) for x in Array1))
 
 
-mp.subplot(211)
-DA1 = [TempDay,TempNight]
-Median_The_Builder(ax1,DA1,['Air Temperature -- day,mean', 'Air Temperature -- night,mean'],'center right')
-
-mp.subplot(212)
-DA2 = [PressDay,PressNight]
-Median_The_Builder(ax2,DA2,['Air Pressure -- day,mean', 'Air Pressure -- night,mean'],'center right')
 
 
-#сортировка
+    def Fitter(self, ydata, deg,leg = 'approximation',r = 0,xdata = None):
+        if xdata == None:xdata = self.x
+        #falseY = sum(ydata)/len(ydata)
+        #yline = [falseY] * len(self.x)
+        #self.plot(yline, c='k', legend='Новый 0')
 
-def Double_Sorter(Array):
-    Array1 = Array.copy()
-    Len = len(Array1)
-    while True:
-        temp = 0
-        for i in range(Len - 2):
-            ps = Array1[i]
-            pr = Array1[i + 1]
-            fu = Array1[i + 2]
-            if pr > fu: pr, fu = fu, pr ; temp+=1
-            if ps > pr: ps, pr = pr, ps ; temp+=1
-            Array1[i] = ps
-            Array1[i+1] = pr
-            Array1[i+2] = fu
-        if temp == 0: break
-    print('Sorted!','\n',Array1)
+        vac = np.polyfit(xdata, ydata, deg)
+        newy = np.polyval(vac, xdata)
+        newy = ["%.2f" % x for x in newy]
+        newy = [float(x) for x in newy]
+
+        if r == 0: pass # print(np.roots(vac))
+        elif r == 1: self.plot(newy,legend = leg)
+        elif r == 2: self.tabletka('Интеграция - Симпсон ' , str(self.Integrator(newy)))
+
+        return vac
 
 
-Double_Sorter(TempDay)
-Double_Sorter(TempNight)
-Double_Sorter(PressDay)
-Double_Sorter(PressNight)
+    #Четвертое задание
+
+    def Integrator(self,y):
+        return integrate.simpson(y)
+
+    #Пятое задание
+
+    def tabletka(self,items,values,M = 0):
+        self.Table.append([items,values])
+
+    def printer(self):
+        global Counter
+        if Counter == 0:
+            graph = 'Graph 1  '
+            Counter += 1
+        else: graph = 'Graph 2  '
+        title = "{0:^80} \n".format('Table of ' + graph + '(' + str(self.ax) + ')')
+        line = "{0:<28} + {1:<180} + \n".format("-"*28, "-"*180)
+        heading = "{0:<28} | {1:<180} |\n".format("Message", "Value(s)")
+        Scr = title + line + heading + line
+        for x in self.Table:
+            fill = "{0:<28} | {1:<180} | \n".format(str(x[0]), str(x[1]))
+            Scr += fill + line
+        with open('readme.txt', 'a') as f:
+            f.write(Scr)
+        print(Scr)
+        
+    #Седьмое задание
+
+    def Council(self,ydata,deg):
+        val = self.Fitter(ydata,deg)
+        cut = [self.x[0],self.x[len(self.x) - 1]]
+
+        class edge:
+            def __iter__(self):
+                self.a = cut[0]
+                self.b = 0.1
+                return self
+
+            def __next__(self):
+                self.a += self.b
+                self.a = float("%.2f" % self.a)
+                x = self.a
+                return x
+
+        #трапеции
+        Edge = iter(edge())
+        S = 0
+        while Edge.a < cut[1]:
+            S += (np.polyval(val,float(Edge.a)) + np.polyval(val,float(next(Edge))))/2 * Edge.b
+        self.tabletka('Трапеции' ,float("%.2f" % S))
+        S = 0
+
+        # прямоугольники слева
+        Edge = iter(edge())
+        while Edge.a < cut[1]:
+            S += (np.polyval(val, float(Edge.a))) * Edge.b
+            next(Edge)
+        self.tabletka('Прямоугольники слева', float("%.2f" % S))
+        S = 0
+
+        # Прямоугольники справа
+        Edge = iter(edge())
+        while Edge.a < cut[1]:
+            S += np.polyval(val, float(next(Edge))) * Edge.b
+        self.tabletka('Прямоугольники справа', float("%.2f" % S))
+        S = 0
+
+        # Параболы
+        Edge1 = iter(edge())
+        Edge2 = iter(edge())
+        next(Edge2)
+
+        def integrand(j,k,l,p):
+            return k * j ** 2 + l * j + p
+
+        while Edge1.a < cut[1] and Edge2.a < cut[1]:
+            Tem = [float(Edge1.a), float(Edge2.a)]
+            next(Edge1)
+            Tem.append(float(next(Edge1)))
+
+            coe = self.Fitter(np.polyval(val, Tem), 2, xdata=Tem)
+            k = coe[0]
+            l = coe[1]
+            p = coe[2]
+
+            S += quad(integrand,Tem[0],Tem[2], args=(k,l,p))[0]
+        self.tabletka('Параболы', float("%.2f" % S))
 
 
-#вывод графиков
 
+
+#sys.exit()
+
+#Создаю две коорд сетки - на них строится все  остальное
+
+f1 = Figure(ax = ax1,x =days,title = 'graph',ylabel = 'Temperature',xlabel = 'Days')
+f2 = Figure(ax = ax2,x = days,title= 'graph',ylabel = 'Pressure',xlabel = 'Days')
+
+#Задание 1 (с этими графиками тоже работают остальные)
+
+f1.plot(y = TempDay,c = 'ro',legend = 'Air Temperature -- day')
+f1.plot(y = TempNight,c = 'go',legend = 'Air Temperature -- night')
+
+f2.plot(y = PressDay,c = 'r^',legend= 'Air Pressure -- day')
+f2.plot(y = PressNight,c = 'g^',legend = 'Air Pressure -- night')
+
+
+#Задание 7
+
+f1.Council(TempDay,3)
+f2.Council(PressDay,3)
+
+#Задание 3
+
+f1.DoubleSorter(TempDay)
+f1.DoubleSorter(TempNight)
+f2.DoubleSorter(PressDay)
+f2.DoubleSorter(PressNight)
+
+f1.Fitter(TempDay,3,r = 1)
+f2.Fitter(PressDay,3,r = 1)
+
+#Задание 2
+
+f1.MedianTheBuilder(TempDay,legend = 'Air Temperature -- day,mean')
+f1.MedianTheBuilder(TempNight,legend = 'Air Temperature -- night,mean')
+
+f2.MedianTheBuilder(PressDay,legend = 'Air Pressure -- day,mean')
+f2.MedianTheBuilder(PressNight,legend = 'Air Pressure -- night,mean')
+
+#Задание 4
+
+f1.Fitter(TempDay,3,r = 2)
+f2.Fitter(PressDay,3,r = 2)
+
+f1.printer()
+f2.printer()
 mp.show()
+
+
+
+
+
